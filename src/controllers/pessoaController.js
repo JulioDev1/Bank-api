@@ -1,3 +1,4 @@
+import { where } from "sequelize";
 import { Pessoa, User } from "../models/pessoa.js";
 
 export const createPerson = (req, res) => {
@@ -21,13 +22,15 @@ export const createPerson = (req, res) => {
       cep: cep,
     })
       .then((result) => {
-        console.log("resultado dessa jossa", result)
+        console.log("resultado dessa jossa", result);
+
         User.create({
           pessoa_id: result.id,
           email: email,
           password: password,
         });
-        return result
+
+        return result;
       })
       .catch((error) => {
         console.log(error);
@@ -38,4 +41,24 @@ export const createPerson = (req, res) => {
       message: `error is ${error}`,
     });
   }
+};
+
+export const loginUser = (req, res) => {
+  const { email, password } = req.body;
+  User.findOne({ where: { email: email, password: password } }).then(
+    (result) => {
+      if (!result) {
+        return res.json({ error: true, message: "not exist user " });
+      }
+      req.session.authorized = true;
+      req.session.user = result;
+      Pessoa.findOne({ where: { id: result.id } })
+        .then((userData) => {
+          console.log(userData);
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    }
+  );
 };
