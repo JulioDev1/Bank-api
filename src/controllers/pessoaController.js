@@ -21,12 +21,13 @@ export const createPerson = (req, res) => {
       cep: cep,
     })
       .then((result) => {
-        // User.create({
-        //   pessoa_id: result.id,
-        //   email: email,
-        //   password: password,
-        // });
-        console.log("resultado", result);
+        console.log("resultado dessa jossa", result)
+        User.create({
+          pessoa_id: result.id,
+          email: email,
+          password: password,
+        });
+        return result
       })
       .catch((error) => {
         console.log(error);
