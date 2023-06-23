@@ -76,18 +76,43 @@ export const loginUser = (req, res) => {
 export const createCurrentAccount = (req, res) => {
   const { numero, nome, saldo } = req.body;
   if (!req.session.user) {
-    return res.json({ error: true, message: "usuario nao pode pode logar!" });
+    return res.json({ error: true, message: "usuario nao pode criar conta!" });
   }
   const id = req.session.user.id;
 
   ContaCorrente.create({ usuario_id: id, numero, nome, saldo })
-    .then((result) => {
+    .then((account) => {
+      res.session.check = account;
       return res.json({
-        error: true,
-        message: `conta de ${result.nome} e deposito feitos com sucesso!`,
+        error: false,
+        message: `conta de ${account.nome} foi criado  e o deposito feitos com sucesso!`,
       });
     })
     .catch((error) => {
       console.log(error);
+    });
+};
+
+export const viewDataAccount = (req, res) => {
+  if (!req.session.user) {
+    return res.json({ error: true, message: "usuario deslogado" });
+  }
+
+  const { numero } = req.body;
+
+  if (!numero) {
+    return res.json({ error: true, message: "numero n existe" });
+  }
+
+  ContaCorrente.findOne({ numero: numero })
+    .then((check) => {
+      return res.json({
+        error: false,
+        message: "dados da conta",
+        check: check,
+      });
+    })
+    .catch((error) => {
+      return res.json({ message: `erro btw ${error}` });
     });
 };

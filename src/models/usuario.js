@@ -9,6 +9,7 @@ const User = sequelize.define("users", {
   pessoa_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    unique: true,
     references: {
       key: "id",
     },
