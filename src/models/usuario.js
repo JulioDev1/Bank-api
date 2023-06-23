@@ -1,12 +1,10 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../config/db.js";
-import { Pessoa } from "./pessoa.js";
 
 const User = sequelize.define("users", {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
   },
   pessoa_id: {
     type: DataTypes.INTEGER,
@@ -20,5 +18,4 @@ const User = sequelize.define("users", {
     allowNull: false,
   },
 });
-
 export { User };
