@@ -37,7 +37,6 @@ const Pessoa = sequelize.define("pessoas", {
 });
 
 Pessoa.hasOne(User, { foreignKey: "pessoa_id", allowNull: false });
-
 User.belongsTo(Pessoa, { foreignKey: "pessoa_id" });
 
 export { Pessoa, User };

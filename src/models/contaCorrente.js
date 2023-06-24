@@ -3,7 +3,7 @@ import { sequelize } from "../config/db.js";
 import { User } from "./usuario.js";
 
 const ContaCorrente = sequelize.define(
-  "contascorrentes",
+  "contascorrente",
   {
     usuario_id: {
       type: DataTypes.INTEGER,
@@ -24,9 +24,10 @@ const ContaCorrente = sequelize.define(
     },
   },
   {
-    timestamps: true,
+    timestamps: false,
   }
 );
-ContaCorrente.hasMany(User, { foreignKey: "pessoa_id" });
-User.belongsTo(ContaCorrente, { foreignKey: "pessoa_id" });
+User.hasMany(ContaCorrente, { foreignKey: "usuario_id" });
+ContaCorrente.belongsTo(User, { foreignKey: "usuario_id" });
+
 export { ContaCorrente };

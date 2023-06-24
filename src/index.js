@@ -15,6 +15,7 @@ app.use(
     saveUninitialized: true,
   })
 );
+
 app.use(express.json());
 app.use(express.static("src"));
 app.use(router);
