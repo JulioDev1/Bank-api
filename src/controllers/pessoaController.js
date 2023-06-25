@@ -94,6 +94,7 @@ export const createCurrentAccount = (req, res) => {
           numero: numero,
           nome: nome,
           saldo: saldo,
+          data_de_abertura: new Date(),
         }).then((account) => {
           return res.json({
             error: false,
