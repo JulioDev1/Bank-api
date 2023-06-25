@@ -1,8 +1,9 @@
 import { DataTypes } from "sequelize";
-import { sequelize } from "../config/db";
+import { sequelize } from "../config/db.js";
+import { ContaCorrente } from "./contaCorrente.js";
 
 const Movimento = sequelize.define("movimento", {
-  contaconrrente: {
+  contacorrente_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
@@ -15,17 +16,21 @@ const Movimento = sequelize.define("movimento", {
     allowNull: false,
   },
   data_de_movimento: {
-    type: Date,
+    type: DataTypes.DATE,
     allowNull: false,
   },
-  contaconrrente_origem: {
-    type: DataTypes.BIGINT,
+  contacorrente_origem: {
+    type: DataTypes.INTEGER,
   },
-  contaconrrente_destino: {
-    type: DataTypes.BIGINT,
+  contacorrente_destino: {
+    type: DataTypes.INTEGER,
   },
   observacao: {
     type: DataTypes.STRING,
   },
 });
+
+ContaCorrente.hasMany(Movimento, { foreignKey: "contacorrente_id" });
+Movimento.belongsTo(ContaCorrente, { foreignKey: "contacorrente_id" });
+
 export { Movimento };

@@ -1,4 +1,6 @@
+import { where } from "sequelize";
 import { ContaCorrente } from "../models/contaCorrente.js";
+import { Movimento } from "../models/movimento.js";
 import { Pessoa, User } from "../models/pessoa.js";
 
 export const createPerson = (req, res) => {
@@ -158,4 +160,57 @@ export const viewDataAccount = (req, res) => {
     .catch((error) => {
       return res.json({ message: `erro btw ${error}` });
     });
+};
+
+export const submitTransctions = async (req, res) => {
+  if (!req.session.user) {
+    return res.json({ error: true, message: "usuario deslogado" });
+  }
+  const { valor, contacorrente_origem, contacorrente_destino, observacao } =
+    req.body;
+
+  await ContaCorrente.findOne({
+    where: { usuario_id: req.session.user.id },
+    numero: contacorrente_origem,
+  }).then((account) => {
+    if (!account) {
+      return res.json({
+        error: true,
+        message: `account is not exist ${account.numero}`,
+      });
+    }
+
+    const newValue = account.saldo - valor;
+
+    if (account.saldo < newValue) {
+      return res.json({
+        error: true,
+        message: "valor baixo",
+      });
+    }
+
+    ContaCorrente.update(
+      { saldo: newValue },
+      {
+        where: {
+          usuario_id: req.session.user.id,
+          numero: contacorrente_origem,
+        },
+      }
+    ).then((updatedValue) => {
+      console.log(updatedValue.saldo);
+    });
+
+    Movimento.create({
+      tipo: "Debito",
+      contacorrente_id: account.usuario_id,
+      valor: valor,
+      data_de_movimento: new Date(),
+      contacorrente_origem: account.numero,
+      contacorrente_destino: contacorrente_destino,
+      observacao: observacao,
+    }).then((transaction) => {
+      return res.json(transaction);
+    });
+  });
 };

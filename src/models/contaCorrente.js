@@ -14,6 +14,7 @@ const ContaCorrente = sequelize.define("contascorrente", {
   },
   data_de_abertura: {
     type: DataTypes.DATE,
+    allowNull: false,
   },
   nome: {
     type: DataTypes.CHAR,
