@@ -1,9 +1,8 @@
-import { where } from "sequelize";
 import { ContaCorrente } from "../models/contaCorrente.js";
 import { Movimento } from "../models/movimento.js";
 import { Pessoa, User } from "../models/pessoa.js";
 
-export const createPerson = (req, res) => {
+export const createPerson = async (req, res) => {
   const {
     nome,
     cpf,
@@ -14,32 +13,63 @@ export const createPerson = (req, res) => {
     email,
     password,
   } = req.body;
+
   try {
-    Pessoa.create({
+    const cpfAlreadyExist = await Pessoa.findOne({ where: { cpf: cpf } });
+
+    console.log(`valores retornado ${cpfAlreadyExist}`);
+
+    const enderecolAlreadyExist = await Pessoa.findOne({
+      where: {
+        endereco: endereco,
+      },
+    });
+
+    const cepAlreadyExist = await Pessoa.findOne({ where: { cep: cep } });
+
+    if (cpfAlreadyExist) {
+      return res.json({ error: true, message: " cpf user already exist" });
+    }
+
+    if (enderecolAlreadyExist) {
+      return res.json({
+        error: true,
+        message: " endereço user already exist",
+      });
+    }
+
+    if (cepAlreadyExist) {
+      return res.json({ error: true, message: " cep user already exist" });
+    }
+    const AccountCreate = await Pessoa.create({
       nome: nome,
       cpf: cpf,
       data_de_nascimento: data_de_nascimento,
       telefone: telefone,
       endereco: endereco,
       cep: cep,
-    })
-      .then((result) => {
-        console.log("resultado dessa jossa", result);
+    });
 
-        User.create({
-          pessoa_id: result.id,
-          email: email,
-          password: password,
-        });
+    const emailAlreadyExist = await User.findOne({ where: { email: email } });
 
-        return res.json({
-          message: "usuario criado com sucesso",
-          nome: nome,
-        });
-      })
-      .catch((error) => {
-        console.log(error);
+    if (emailAlreadyExist) {
+      return res.json({
+        error: true,
+        message: "email already exist",
       });
+    }
+
+    const user = await User.create({
+      pessoa_id: AccountCreate.id,
+      email: email,
+      password: password,
+    });
+
+    return res.json({
+      message: "usuario criado com sucesso",
+      nome: nome,
+      user: user.email,
+    });
   } catch (error) {
     return res.json({
       error: true,
@@ -169,48 +199,98 @@ export const submitTransctions = async (req, res) => {
   const { valor, contacorrente_origem, contacorrente_destino, observacao } =
     req.body;
 
-  await ContaCorrente.findOne({
+  const accountOrigem = await ContaCorrente.findOne({
     where: { usuario_id: req.session.user.id },
     numero: contacorrente_origem,
-  }).then((account) => {
-    if (!account) {
-      return res.json({
-        error: true,
-        message: `account is not exist ${account.numero}`,
-      });
-    }
-
-    const newValue = account.saldo - valor;
-
-    if (account.saldo < newValue) {
-      return res.json({
-        error: true,
-        message: "valor baixo",
-      });
-    }
-
-    ContaCorrente.update(
-      { saldo: newValue },
-      {
-        where: {
-          usuario_id: req.session.user.id,
-          numero: contacorrente_origem,
-        },
-      }
-    ).then((updatedValue) => {
-      console.log(updatedValue.saldo);
-    });
-
-    Movimento.create({
-      tipo: "Debito",
-      contacorrente_id: account.usuario_id,
-      valor: valor,
-      data_de_movimento: new Date(),
-      contacorrente_origem: account.numero,
-      contacorrente_destino: contacorrente_destino,
-      observacao: observacao,
-    }).then((transaction) => {
-      return res.json(transaction);
-    });
   });
+  console.log("daskldjaslkdasldlaks", accountOrigem);
+  if (!accountOrigem) {
+    return res.json({
+      error: true,
+      message: `account is not exist ${account.numero}`,
+    });
+  }
+
+  const newValue = accountOrigem.saldo - valor;
+
+  if (accountOrigem.saldo < newValue) {
+    return res.json({
+      error: true,
+      message: "valor baixo",
+    });
+  }
+
+  await ContaCorrente.update(
+    { saldo: newValue },
+    { where: { id: accountOrigem.id } }
+  ).then((updatedValue) => {
+    console.log(updatedValue.saldo);
+  });
+
+  const transactionCreate = await Movimento.create({
+    tipo: "Credito",
+    contacorrente_id: accountOrigem.usuario_id,
+    valor: valor,
+    data_de_movimento: new Date(),
+    contacorrente_origem: accountOrigem.numero,
+    contacorrente_destino: contacorrente_destino,
+    observacao: observacao,
+  });
+
+  const accountDestino = await ContaCorrente.findOne({
+    where: { numero: contacorrente_destino },
+  });
+
+  if (!accountDestino) {
+    return res.json({
+      error: true,
+      message: "conta nao existe",
+    });
+  }
+
+  const destinyValue = accountDestino.saldo + valor;
+
+  await ContaCorrente.update(
+    { saldo: destinyValue },
+    { where: { id: accountDestino.id } }
+  ).then((updatedValue) => {
+    console.log(updatedValue.saldo);
+  });
+  const transactionDestiny = await Movimento.create({
+    tipo: "Debito",
+    contacorrente_id: accountDestino.usuario_id,
+    valor: valor,
+    data_de_movimento: new Date(),
+    contacorrente_origem: contacorrente_origem,
+    contacorrente_destino: contacorrente_destino,
+    observacao: observacao,
+  });
+
+  return res.json({ transactionDestiny, transactionCreate });
+};
+
+export const listAllTransactions = async (req, res) => {
+  if (!req.session.user) {
+    return res.json({ error: true, message: "usuario deslogado" });
+  }
+
+  const findAllTransactions = await Movimento.findAll({
+    where: { contacorrente_id: req.session.user.id },
+  });
+
+  if (!findAllTransactions) {
+    return res.json({
+      message: "nao há transações nessa conta ainda!",
+    });
+  }
+
+  const data = await findAllTransactions.map((transaction) => ({
+    tipo: transaction.tipo,
+    valor: transaction.valor,
+    data_de_movimento: transaction.data_de_movimento,
+    contacorrente_origem: transaction.contacorrente_origem,
+    contacorrente_destino: transaction.contacorrente_destino,
+    observacao: transaction.observacao,
+  }));
+  return res.json({ error: false, data });
 };

@@ -5,6 +5,7 @@ const User = sequelize.define("users", {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
+    unique: true,
   },
   pessoa_id: {
     type: DataTypes.INTEGER,

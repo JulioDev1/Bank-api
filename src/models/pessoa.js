@@ -29,10 +29,12 @@ const Pessoa = sequelize.define("pessoas", {
   endereco: {
     type: DataTypes.STRING,
     allowNull: false,
+    unique: true,
   },
   cep: {
     type: DataTypes.BIGINT,
     allowNull: false,
+    unique: true,
   },
 });
 

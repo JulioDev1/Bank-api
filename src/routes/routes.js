@@ -3,6 +3,7 @@ import {
   AllUsersAccount,
   createCurrentAccount,
   createPerson,
+  listAllTransactions,
   loginUser,
   submitTransctions,
   viewDataAccount,
@@ -15,4 +16,5 @@ router.post("/createCurrentAccount", createCurrentAccount);
 router.get("/allUserList", AllUsersAccount);
 router.get("/dataUser", viewDataAccount);
 router.put("/submitTransActions", submitTransctions);
+router.get("/listUserTransactions", listAllTransactions);
 export default router;
