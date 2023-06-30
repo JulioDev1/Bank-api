@@ -1,3 +1,4 @@
+import { json } from "sequelize";
 import { ContaCorrente } from "../models/contaCorrente.js";
 import { Movimento } from "../models/movimento.js";
 import { Pessoa, User } from "../models/pessoa.js";
@@ -13,44 +14,14 @@ export const createPerson = async (req, res) => {
     email,
     password,
   } = req.body;
-
+  console.log(req.body);
   try {
-    const cpfAlreadyExist = await Pessoa.findOne({ where: { cpf: cpf } });
-
-    console.log(`valores retornado ${cpfAlreadyExist}`);
-
-    const enderecolAlreadyExist = await Pessoa.findOne({
-      where: {
-        endereco: endereco,
-      },
-    });
-
-    const cepAlreadyExist = await Pessoa.findOne({ where: { cep: cep } });
-
+    const cpfAlreadyExist = await Pessoa.findOne({ where: { cpf } });
     if (cpfAlreadyExist) {
       return res.json({ error: true, message: " cpf user already exist" });
     }
 
-    if (enderecolAlreadyExist) {
-      return res.json({
-        error: true,
-        message: " endereço user already exist",
-      });
-    }
-
-    if (cepAlreadyExist) {
-      return res.json({ error: true, message: " cep user already exist" });
-    }
-    const AccountCreate = await Pessoa.create({
-      nome: nome,
-      cpf: cpf,
-      data_de_nascimento: data_de_nascimento,
-      telefone: telefone,
-      endereco: endereco,
-      cep: cep,
-    });
-
-    const emailAlreadyExist = await User.findOne({ where: { email: email } });
+    const emailAlreadyExist = await User.findOne({ where: { email } });
 
     if (emailAlreadyExist) {
       return res.json({
@@ -58,17 +29,26 @@ export const createPerson = async (req, res) => {
         message: "email already exist",
       });
     }
+    console.log(`valores retornado ${cpfAlreadyExist}`);
 
+    const AccountCreate = await Pessoa.create({
+      nome,
+      cpf,
+      data_de_nascimento,
+      telefone,
+      endereco,
+      cep,
+    });
     const user = await User.create({
       pessoa_id: AccountCreate.id,
-      email: email,
-      password: password,
+      email,
+      password,
     });
 
     return res.json({
       message: "usuario criado com sucesso",
-      nome: nome,
-      user: user.email,
+      nome,
+      user,
     });
   } catch (error) {
     return res.json({
@@ -78,31 +58,24 @@ export const createPerson = async (req, res) => {
   }
 };
 
-export const loginUser = (req, res) => {
+export const loginUser = async (req, res) => {
   const { email, password } = req.body;
-  User.findOne({ where: { email: email, password: password } }).then(
-    (result) => {
-      if (!result) {
-        return res.json({ error: true, message: "not exist user " });
-      }
 
-      req.session.authorized = true;
+  const user = await User.findOne({
+    where: { email: email, password: password },
+  });
 
-      req.session.user = result;
+  if (!user) {
+    return res.json({ error: true, message: "not exist user " });
+  }
 
-      Pessoa.findOne({ where: { id: result.id } })
-        .then((userData) => {
-          return res.json({
-            error: false,
-            message: ` bem vindo !${userData.nome}`,
-            userData,
-          });
-        })
-        .catch((error) => {
-          console.log(error);
-        });
-    }
-  );
+  req.session.authorized = true;
+
+  req.session.user = user;
+
+  const person = await Pessoa.findOne({ where: { id: user.id } });
+
+  return res.json({ error: false, message: `welcome ${person.nome}` });
 };
 
 export const createCurrentAccount = (req, res) => {
@@ -196,8 +169,7 @@ export const submitTransctions = async (req, res) => {
   if (!req.session.user) {
     return res.json({ error: true, message: "usuario deslogado" });
   }
-  const { valor, contacorrente_origem, contacorrente_destino, observacao } =
-    req.body;
+  const { valor, contacorrente_origem, contacorrente_destino } = req.body;
 
   const accountOrigem = await ContaCorrente.findOne({
     where: { usuario_id: req.session.user.id },
@@ -211,7 +183,14 @@ export const submitTransctions = async (req, res) => {
     });
   }
 
-  const newValue = accountOrigem.saldo - valor;
+  if (accountOrigem.saldo === 0) {
+    return res.json({
+      error: true,
+      message: `saldo abaixo para envio!`,
+    });
+  }
+
+  const newValue = accountOrigem.saldo - parseFloat(valor);
 
   if (accountOrigem.saldo < newValue) {
     return res.json({
@@ -224,7 +203,7 @@ export const submitTransctions = async (req, res) => {
     { saldo: newValue },
     { where: { id: accountOrigem.id } }
   ).then((updatedValue) => {
-    console.log(updatedValue.saldo);
+    return updatedValue.saldo;
   });
 
   const transactionCreate = await Movimento.create({
@@ -234,7 +213,7 @@ export const submitTransctions = async (req, res) => {
     data_de_movimento: new Date(),
     contacorrente_origem: accountOrigem.numero,
     contacorrente_destino: contacorrente_destino,
-    observacao: observacao,
+    observacao: "envio",
   });
 
   const accountDestino = await ContaCorrente.findOne({
@@ -248,14 +227,15 @@ export const submitTransctions = async (req, res) => {
     });
   }
 
-  const destinyValue = accountDestino.saldo + valor;
+  const destinyValue = accountDestino.saldo + parseFloat(valor);
 
   await ContaCorrente.update(
     { saldo: destinyValue },
     { where: { id: accountDestino.id } }
   ).then((updatedValue) => {
-    console.log(updatedValue.saldo);
+    return updatedValue.saldo;
   });
+
   const transactionDestiny = await Movimento.create({
     tipo: "Debito",
     contacorrente_id: accountDestino.usuario_id,
@@ -263,7 +243,7 @@ export const submitTransctions = async (req, res) => {
     data_de_movimento: new Date(),
     contacorrente_origem: contacorrente_origem,
     contacorrente_destino: contacorrente_destino,
-    observacao: observacao,
+    observacao: "recebimento",
   });
 
   return res.json({ transactionDestiny, transactionCreate });
